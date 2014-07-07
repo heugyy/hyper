@@ -1,5 +1,4 @@
 function varargout = Load_Spec( Filename )
-
 %%function varargout =load_spec( filename )
 %%varargout contains at least datacube and bandname may be used sometimes.
 %%load hyperspectracl ENVI format data, including a raw data file *.dat and header file .hdr

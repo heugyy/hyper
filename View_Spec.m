@@ -1,4 +1,6 @@
 function varargout = View_Spec(varargin)
+% View the ENVI or Mat format hyperspectral data. 
+
 % View_Spec MATLAB code for View_Spec.fig
 %      View_Spec, by itself, creates a new View_Spec or raises the existing
 %      singleton*.
@@ -222,8 +224,8 @@ function ToolSpectralProfile_OnCallback(hObject, eventdata, handles)
 % hObject    handle to ToolSpectralProfile (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-set(handles.axes_spec,'Visible','On');
 
+% set(handles.axes_spec,'Visible','On');
 datacube = handles.datacube;
 bandname = handles.bandname;
 [~, ~, b] = size(datacube);
@@ -231,7 +233,10 @@ bandname = handles.bandname;
 num = 5;
 sample = zeros(num,b);
 i = 1;
-h = figure; hold all,
+scrsz = get(0,'ScreenSize');
+h = figure(1); hold all,
+set(h,'Position',[10 scrsz(4)/4 scrsz(3)*0.3 scrsz(4)*0.4],'Name','Spectral Profile');
+xlabel('Wavelength'); ylabel('Reflectance');
 while strcmp(get(hObject,'State'),'on')
    %[x,y,but] = ginput(1);
    %rect = getrect(ax);

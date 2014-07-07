@@ -1,5 +1,5 @@
-%% resize the Nikon original images whose data is very big
 function resizeNikon(filename)
+% resize the Nikon original images whose data is very big
 im = imread(filename);
 [~, n, ~] = size(im);
 if (n > 3000)

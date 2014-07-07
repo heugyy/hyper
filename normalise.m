@@ -1,4 +1,5 @@
 function [outdata,mind,maxd] = normalise(data, p2, p3)
+% normalise the data into 0 to 1 with p3 percent of highest values removed
 indata = double(data);
 percent = p3;
 ndata = numel(indata);
