@@ -25,7 +25,7 @@ function varargout = View_Spec(varargin)
 
 % Edit the above text to modify the response to help View_Spec
 
-% Last Modified by GUIDE v2.5 15-May-2014 21:08:50
+% Last Modified by GUIDE v2.5 09-Jul-2014 16:13:48
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -237,11 +237,12 @@ scrsz = get(0,'ScreenSize');
 h = figure(1); hold all,
 set(h,'Position',[10 scrsz(4)/4 scrsz(3)*0.3 scrsz(4)*0.4],'Name','Spectral Profile');
 xlabel('Wavelength'); ylabel('Reflectance');
+set(gca,'YLim',[0 1]);
 while strcmp(get(hObject,'State'),'on')
    %[x,y,but] = ginput(1);
    %rect = getrect(ax);
    rect = getrect(handles.axes1);
-   roi=datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);      
+   roi = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);      
    spectral = squeeze(mean(mean(roi,1),2));    
    sample(i,:) = spectral;
    %imagehandle = plot(handles.axes_spec,bandname,spectral,'b');   
@@ -297,11 +298,7 @@ if strcmp(filename(end-3:end), '.mat')
                 bandname = 1:1:size(datacube,3);
         end
     end
-%     if max(datacube(:)) ~= 1 || max(datacube(:)) ~= 255 || max(datacube(:)) ~= 65535
-%         datacube = normalise(datacube,'percent', 0.999);
-%     else
-%         datacube = normalise(datacube,'percent', 1);
-%     end
+
     if max(datacube(:)) ~= 1 && size(datacube,3) ~= 255
         datacube = normalise(datacube,'percent', 0.999);
     else
@@ -310,8 +307,14 @@ if strcmp(filename(end-3:end), '.mat')
     description = 'online database';
 else
     [datacube, bandname, description] = Load_Spec(filename);
-   %when the images become clear, let's have a try without no resize.
-    datacube = normalise(datacube,'percent', 0.999);
+%      darkFrame = importdata('darkFrame.mat');
+%      slice = mean(darkFrame, 3);
+%      for mm = 1:size(darkFrame,3);
+%          darkFrame(:,:,mm) = slice;
+%      end
+%      datacube = datacube - darkFrame;
+%    %when the images become clear, let's have a try without no resize.
+%     datacube = normalise(datacube,'percent', 1);
     if handles.version == 2
         datacube = datacube(:,:,end-40:end);
         bandname = bandname(end-40:end);
@@ -359,7 +362,7 @@ function ButtonCalibrate_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 set(handles.axes_spec,'Visible','On');
-datacube = handles.datacube;
+datacube = double(handles.datacube);
 bandname = handles.bandname;
 axes(handles.axes1);
 rect = getrect(handles.axes1);
@@ -449,11 +452,8 @@ set (handles.SliderWavelength,'Max',slidermax);
 set (handles.SliderWavelength,'SliderStep',sliderstep);
 guidata(hObject, handles)
 
-
     
     
-
-
 % --------------------------------------------------------------------
 function Saveas_Callback(hObject, eventdata, handles)
 % hObject    handle to Saveas (see GCBO)
@@ -580,3 +580,93 @@ ToolOpen_ClickedCallback(hObject, eventdata, handles)
 
 % --------------------------------------------------------------------
 
+
+
+% --------------------------------------------------------------------
+function Calibration_Callback(hObject, eventdata, handles)
+% hObject    handle to Calibration (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+
+% --------------------------------------------------------------------
+function DarkCalibrate_Callback(hObject, eventdata, handles)
+% hObject    handle to DarkCalibrate (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+currentpath = cd();
+[filename, pathname] = uigetfile({'*.hdr;*.dat','Hyper Files (*.hdr,*.dat)'},'Load Dark Frame');
+if (filename==0) % cancel pressed
+    return;
+end
+cd (pathname);
+[darkFrame, ~, ~] = Load_Spec(filename);
+cd (currentpath);
+slice = mean(darkFrame, 3);
+for mm = 1:size(darkFrame,3);
+    darkFrame(:,:,mm) = slice;
+end
+handles.darkFrame = darkFrame;
+guidata(hObject, handles);
+msgbox('dark frame loaded');
+
+
+
+% --------------------------------------------------------------------
+function WhiteCalibrate_Callback(hObject, eventdata, handles)
+% hObject    handle to WhiteCalibrate (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+set(handles.axes_spec,'Visible','On');
+datacube = handles.datacube;
+bandname = handles.bandname;
+axes(handles.axes1);
+rect = getrect(handles.axes1);
+roi = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);      
+whiteReference = squeeze(mean(mean(roi,1),2));  
+plot(handles.axes_spec,bandname,whiteReference,'b'); 
+title(handles.axes_spec,'spectral profile');
+handles.rect = rect;
+guidata(hObject, handles);
+
+
+% --------------------------------------------------------------------
+function Process_Callback(hObject, eventdata, handles)
+% hObject    handle to Process (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+datacube = double(handles.datacube);
+bandname = handles.bandname;
+darkFrame = double(handles.darkFrame);
+
+Rdatacube = datacube - darkFrame;
+rect = handles.rect;
+whiteArea = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:); 
+darkArea = darkFrame(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);
+RwhiteArea =  whiteArea - darkArea;
+
+%make sure they are above 0
+Dmin = min(Rdatacube(:));
+Wmin = min(RwhiteArea(:));
+minimum = min(Dmin, Wmin);
+if minimum < 0
+    NRdatacube = Rdatacube + abs(minimum);
+    NRwhiteArea = RwhiteArea + abs(minimum);
+end
+whiteReference = squeeze(mean(mean(NRwhiteArea,1),2));
+for i = 1:length(bandname)
+   datacube(:,:,i) = NRdatacube(:,:,i)/ whiteReference(i);
+end
+
+% Rdatacube(Rdatacube<0) = 0;
+% RwhiteArea(RwhiteArea<0) = 0;
+% 
+% whiteReference = squeeze(mean(mean(RwhiteArea,1),2));
+% for i = 1:length(bandname)
+%    datacube(:,:,i) = Rdatacube(:,:,i)/ whiteReference(i);
+% end
+
+datacube = normalise(datacube,'percent', 0.999);
+handles.datacube = datacube;
+guidata(hObject, handles);
