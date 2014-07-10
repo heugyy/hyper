@@ -621,6 +621,7 @@ function WhiteCalibrate_Callback(hObject, eventdata, handles)
 set(handles.axes_spec,'Visible','On');
 datacube = handles.datacube;
 bandname = handles.bandname;
+%specify the area of spectralon
 axes(handles.axes1);
 rect = getrect(handles.axes1);
 roi = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);      
@@ -636,10 +637,11 @@ function Process_Callback(hObject, eventdata, handles)
 % hObject    handle to Process (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+% process the white and dark calibration
 datacube = double(handles.datacube);
 bandname = handles.bandname;
 darkFrame = double(handles.darkFrame);
-
 Rdatacube = datacube - darkFrame;
 rect = handles.rect;
 whiteArea = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:); 
