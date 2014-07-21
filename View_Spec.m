@@ -25,7 +25,7 @@ function varargout = View_Spec(varargin)
 
 % Edit the above text to modify the response to help View_Spec
 
-% Last Modified by GUIDE v2.5 09-Jul-2014 16:13:48
+% Last Modified by GUIDE v2.5 20-Jul-2014 17:52:49
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -670,5 +670,15 @@ end
 % end
 
 datacube = normalise(datacube,'percent', 0.999);
+handles.datacube = datacube;
+guidata(hObject, handles);
+
+
+% --------------------------------------------------------------------
+function Normalise_Callback(hObject, eventdata, handles)
+% hObject    handle to Normalise (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+datacube = normalise(handles.datacube,'percent', 0.999);
 handles.datacube = datacube;
 guidata(hObject, handles);
