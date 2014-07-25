@@ -156,6 +156,7 @@ if (~isempty(output)) && ndims(output) == 3
     handles.datacube = output;
 end
 guidata(hObject, handles); 
+%test
 
 % --------------------------------------------------------------------
 function Analyse_Callback(hObject, eventdata, handles)
