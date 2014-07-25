@@ -245,6 +245,7 @@ while strcmp(get(hObject,'State'),'on')
    roi = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);      
    spectral = squeeze(mean(mean(roi,1),2));    
    sample(i,:) = spectral;
+   assignin('base', 'temp',sample); 
    %imagehandle = plot(handles.axes_spec,bandname,spectral,'b');   
    plot(get(h,'CurrentAxes'), bandname,spectral);   
   % title(handles.axes_spec,'spectral profile');
@@ -252,9 +253,10 @@ while strcmp(get(hObject,'State'),'on')
    if (i == num+1)
        break;
    end
+   
 end
 
-assignin('base', 'temp',sample); 
+
 
 % --------------------------------------------------------------------
 function ToolOpen_ClickedCallback(hObject, eventdata, handles)
@@ -653,6 +655,8 @@ minimum = min(Dmin, Wmin);
 if minimum < 0
     NRdatacube = Rdatacube + abs(minimum);
     NRwhiteArea = RwhiteArea + abs(minimum);
+    %NRdatacube = Rdatacube + abs(Dmin);
+    %NRwhiteArea = RwhiteArea + abs(Wmin);
 end
 whiteReference = squeeze(mean(mean(NRwhiteArea,1),2));
 for i = 1:length(bandname)
