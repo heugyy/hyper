@@ -235,7 +235,6 @@ sample = zeros(num,b);
 i = 1;
 scrsz = get(0,'ScreenSize');
 h = figure(1); hold on,
-h2 = figure(2); hold on,
 set(h,'Position',[10 scrsz(4)/4 scrsz(3)*0.3 scrsz(4)*0.4],'Name','Spectral Profile');
 xlabel('Wavelength'); ylabel('Reflectance');
 set(get(h,'CurrentAxes'),'YLim',[0 1]);
@@ -245,14 +244,10 @@ while strcmp(get(hObject,'State'),'on')
    rect = getrect(handles.axes1);
    roi = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);      
    spectral = squeeze(mean(mean(roi,1),2));
-   for j=1:b
-       spectral2(j) = sum(spectral(1:j));
-   end
    sample(i,:) = spectral;
    assignin('base', 'temp',sample); 
    %imagehandle = plot(handles.axes_spec,bandname,spectral,'b');   
    plot(get(h,'CurrentAxes'), bandname,spectral);   
-   plot(get(h2,'CurrentAxes'), bandname, spectral2, 'r');  
   % title(handles.axes_spec,'spectral profile');
    i = i + 1;
    if (i == num+1)
