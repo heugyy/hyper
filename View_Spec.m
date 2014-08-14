@@ -25,7 +25,7 @@ function varargout = View_Spec(varargin)
 
 % Edit the above text to modify the response to help View_Spec
 
-% Last Modified by GUIDE v2.5 20-Jul-2014 17:52:49
+% Last Modified by GUIDE v2.5 10-Aug-2014 11:51:25
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -123,8 +123,6 @@ set(handles.EditWavelength, 'String', num2str(band));
 step = handles.bandname(2) - handles.bandname(1);
 slice = squeeze(handles.datacube(:,:,floor((band-handles.bandname(1))/step+1)));
 axes(handles.axes1); cla; imshow(slice);
-
-
 
 
 
@@ -230,14 +228,14 @@ datacube = handles.datacube;
 bandname = handles.bandname;
 [~, ~, b] = size(datacube);
 %axes(handles.axes1);
-num = 5;
+num = 6;
 sample = zeros(num,b);
 i = 1;
 scrsz = get(0,'ScreenSize');
-h = figure(1); hold on,
+h = figure(1); hold all,
 set(h,'Position',[10 scrsz(4)/4 scrsz(3)*0.3 scrsz(4)*0.4],'Name','Spectral Profile');
 xlabel('Wavelength'); ylabel('Reflectance');
-set(get(h,'CurrentAxes'),'YLim',[0 1]);
+
 while strcmp(get(hObject,'State'),'on')
    %[x,y,but] = ginput(1);
    %rect = getrect(ax);
@@ -245,9 +243,12 @@ while strcmp(get(hObject,'State'),'on')
    roi = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);      
    spectral = squeeze(mean(mean(roi,1),2));
    sample(i,:) = spectral;
-   assignin('base', 'temp',sample); 
+   assignin('base', 'temp', sample); 
    %imagehandle = plot(handles.axes_spec,bandname,spectral,'b');   
    plot(get(h,'CurrentAxes'), bandname,spectral);   
+   if range(spectral(:)) <= 1 
+        set(get(h,'CurrentAxes'),'YLim',[0 1]);
+   end
   % title(handles.axes_spec,'spectral profile');
    i = i + 1;
    if (i == num+1)
@@ -300,12 +301,12 @@ if strcmp(filename(end-3:end), '.mat')
                 bandname = 1:1:size(datacube,3);
         end
     end
-
-    if max(datacube(:)) ~= 1 && size(datacube,3) ~= 255
-        datacube = normalise(datacube,'percent', 0.999);
-    else
-        datacube = normalise(datacube,'percent', 1);
-    end
+%   normalization will be done in meau
+%     if max(datacube(:)) ~= 1 && size(datacube,3) ~= 255
+%         datacube = normalise(datacube,'percent', 0.999);
+%     else
+%         datacube = normalise(datacube,'percent', 1);
+%     end
     description = 'online database';
 else
     [datacube, bandname, description] = Load_Spec(filename);
@@ -562,12 +563,17 @@ function MenuOutput_Callback(hObject, eventdata, handles)
 currentpath = cd();  
 cd(path);
 mkdir(foldername)
+
 datacube = handles.datacube;
 bandname = handles.bandname; 
+datacube = normalise(datacube, 'p', 0.999);
+datacube = datacube*255;
+datacube = uint8(datacube);
 [~, ~, b] = size(datacube);
 for i = 1:b
     img = squeeze(datacube(:,:,i));
     img = imadjust(img);
+    img = uint8(img);
     imgname = fullfile(foldername, [num2str(bandname(i)), '.jpg']);
     imwrite(img,imgname);
 end    
@@ -686,3 +692,55 @@ function Normalise_Callback(hObject, eventdata, handles)
 datacube = normalise(handles.datacube,'percent', 0.999);
 handles.datacube = datacube;
 guidata(hObject, handles);
+
+
+% --------------------------------------------------------------------
+function OutputAsWhole_Callback(hObject, eventdata, handles)
+% hObject    handle to OutputAsWhole (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+[foldername, path] = uiputfile({ '*.*','All Files' },'Output images into a folder');
+currentpath = cd();  
+cd(path);
+mkdir(foldername)
+datacube = handles.datacube;
+bandname = handles.bandname; 
+datacube = normalise(datacube, 'p', 0.999);
+datacube = datacube * 255;
+datacube = uint8(datacube);
+[~, ~, b] = size(datacube);
+for i = 1:b
+    img = squeeze(datacube(:,:,i));
+    imgname = fullfile(foldername, [num2str(bandname(i)), '.jpg']);
+    imwrite(img,imgname);
+end    
+cd(currentpath); 
+
+
+% --- Executes on button press in ButtonClassify.
+function ButtonClassify_Callback(hObject, eventdata, handles)
+% hObject    handle to ButtonClassify (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+datacube = handles.datacube;
+bandname = handles.bandname;
+[m, n, b] = size(datacube);
+rect = getrect(handles.axes1);
+roi = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);      
+spectral = squeeze(mean(mean(roi,1),2));
+plot(handles.axes_spec, bandname, spectral);   
+tempData = reshape(datacube, [m*n, b]);
+tempData = double(tempData');
+rho = corr(tempData, spectral);
+rho(rho>0.9) = 0;
+img = reshape(rho,[m, n]);
+figure, imshow(img);
+
+% rho = corr(data', spectral');
+
+
+
+
+
+
+
