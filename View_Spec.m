@@ -25,7 +25,7 @@ function varargout = View_Spec(varargin)
 
 % Edit the above text to modify the response to help View_Spec
 
-% Last Modified by GUIDE v2.5 09-Jul-2014 16:13:48
+% Last Modified by GUIDE v2.5 20-Jul-2014 17:52:49
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -235,16 +235,16 @@ num = 5;
 sample = zeros(num,b);
 i = 1;
 scrsz = get(0,'ScreenSize');
-h = figure(1); hold all,
+h = figure(1); hold on,
 set(h,'Position',[10 scrsz(4)/4 scrsz(3)*0.3 scrsz(4)*0.4],'Name','Spectral Profile');
 xlabel('Wavelength'); ylabel('Reflectance');
-set(gca,'YLim',[0 1]);
+set(get(h,'CurrentAxes'),'YLim',[0 1]);
 while strcmp(get(hObject,'State'),'on')
    %[x,y,but] = ginput(1);
    %rect = getrect(ax);
    rect = getrect(handles.axes1);
    roi = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);      
-   spectral = squeeze(mean(mean(roi,1),2));    
+   spectral = squeeze(mean(mean(roi,1),2));
    sample(i,:) = spectral;
    assignin('base', 'temp',sample); 
    %imagehandle = plot(handles.axes_spec,bandname,spectral,'b');   
@@ -624,6 +624,7 @@ function WhiteCalibrate_Callback(hObject, eventdata, handles)
 set(handles.axes_spec,'Visible','On');
 datacube = handles.datacube;
 bandname = handles.bandname;
+%specify the area of spectralon
 axes(handles.axes1);
 rect = getrect(handles.axes1);
 roi = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);      
@@ -639,10 +640,11 @@ function Process_Callback(hObject, eventdata, handles)
 % hObject    handle to Process (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+% process the white and dark calibration
 datacube = double(handles.datacube);
 bandname = handles.bandname;
 darkFrame = double(handles.darkFrame);
-
 Rdatacube = datacube - darkFrame;
 rect = handles.rect;
 whiteArea = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:); 
@@ -673,5 +675,15 @@ end
 % end
 
 datacube = normalise(datacube,'percent', 0.999);
+handles.datacube = datacube;
+guidata(hObject, handles);
+
+
+% --------------------------------------------------------------------
+function Normalise_Callback(hObject, eventdata, handles)
+% hObject    handle to Normalise (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+datacube = normalise(handles.datacube,'percent', 0.999);
 handles.datacube = datacube;
 guidata(hObject, handles);

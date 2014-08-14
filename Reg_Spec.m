@@ -1,6 +1,5 @@
-function Reg_Spec(filename)
+function Reg_Spec(filename,varargin)
 %%register the datacube from 600:1000 and 500:600 separately.
-
 %potential problems, the anchor could lie out of band 580-640, then these
 %bands all need to be registered.
 
@@ -8,22 +7,37 @@ function Reg_Spec(filename)
 [d, bandname, ~] = Load_Spec(filename);
 odatacube = normalise(d,'percent', 0.999);
 clear d;
-datacube = odatacube(:,:,end-50:end);
-bandname = bandname(end-50 : end);
-[~, ~, b] = size(datacube);  
-endl = 7; % the end of low channel
-starth = 16; % the beginning of high channel
-c = zeros(b,1); %choose the anchor by measuring the contrast
+interval = bandname(2) - bandname(1);
+bandmin = bandname(1);
+bandmax = bandname(end);
+
+if bandmin >=500 % lowest band which is usefull for registration
+    datacube = odatacube; % from 500: 1000
+else
+    indexof500 = (500-bandmin)/interval + 1;
+    datacube = odatacube(:,:,indexof500:end); % from 500: 1000
+    bandname = bandname(indexof500 : end);
+    bandmin = bandname(1);
+    b = length(bandname);
+end
+
+endl = (560-bandmin)/interval + 1; % the end of low channel 560 nm
+starth = (650-bandmin)/interval + 1; % the beginning of high channel 650 nm
+c = zeros(b, 1); %choose the anchor by measuring the contrast
 
 %initial registration parameters
 for i=1:b
     slice = datacube(:,:,i);
     c(i,1) = fmeasure(slice, 'GDER',[]);   
 end
-[~,index] = max(c);
-anchor = datacube(:,:,index);
+[~,indexofAnchor] = max(c);
+if indexofAnchor <650 && indexofAnchor >570
+    anchor = datacube(:,:,indexofAnchor);
+else
+    indexofAnchor = (630-bandmin)/interval + 1; 
+    anchor = datacube(:,:,indexofAnchor);
+end
 anchor = imadjust(anchor);
-
  % the number of images which don't need to register
 scale = ones(b,1);
 theta = zeros(b,1);
@@ -31,7 +45,7 @@ tx = zeros(b,1);
 ty = zeros(b,1);
 band = zeros(b,1);
 
-for i = 1:1:b % from middle to high wavelength 
+for i = 1:1:b % from bandmin to 560, and 650 : bandmax 
     if i<starth && i>endl
         continue;
     end
@@ -66,11 +80,14 @@ for i = 1: b % from middle to left
     register = imwarp(target, tform, 'OutputView', imref2d(size(target)));
     datacube(:,:,i) = register;
 end
-% if the anchor is out of the 600 - 650 nm, these bands also need to be
-% registered
-%if index > 5
 
-odatacube(:,:,11:61) = datacube;    
+%transform slices below 500  
+if bandmin < 500 % lowest band which is usefull for registration
+    tform = affine2d(Tr{1});
+    ndatacube = odatacube(:,:,1:indexof500-1);% the first nosiy datacube 
+    odatacube(:,:,1:indexof500-1) = imwarp(ndatacube, tform, 'OutputView', imref2d(size(ndatacube)));
+end
+odatacube(:,:,indexof500:end) = datacube;    
 %save the registered data
 output = im2uint16(odatacube);
 dataname = regexprep(filename,'.dat','_r.mat', 'ignorecase');
