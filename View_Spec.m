@@ -25,7 +25,7 @@ function varargout = View_Spec(varargin)
 
 % Edit the above text to modify the response to help View_Spec
 
-% Last Modified by GUIDE v2.5 10-Aug-2014 11:51:25
+% Last Modified by GUIDE v2.5 15-Aug-2014 16:17:44
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -118,7 +118,7 @@ function SliderWavelength_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-band = get(hObject, 'Value');
+band = get(handles.SliderWavelength, 'Value');
 set(handles.EditWavelength, 'String', num2str(band));
 step = handles.bandname(2) - handles.bandname(1);
 slice = squeeze(handles.datacube(:,:,floor((band-handles.bandname(1))/step+1)));
@@ -742,6 +742,51 @@ figure, imshow(img);
 
 
 
+% --- Executes on button press in ButtonDenoise.
+function ButtonDenoise_Callback(hObject, eventdata, handles)
+% hObject    handle to ButtonDenoise (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+method = get(handles.PopupmenuDenoise, 'Value');
+datacube = handles.datacube;
+bandname = handles.bandname;
+switch method
+    case 1 %'Gaussian'
+        h = fspecial('gaussian');
+        denoisedData = imfilter(datacube,h);
+    case 2 %'Mean'
+        h = fspecial('average');
+        denoisedData = imfilter(datacube,h);
+    case 3 %'Meddian'
+        denoisedData = medfilt2(datacube);        
+    case 4 %'NMF'
+end
+handles.datacube = denoisedData;
+guidata(hObject, handles);
+SliderWavelength_Callback(hObject, eventdata, handles);
 
 
 
+
+
+% --- Executes on selection change in PopupmenuDenoise.
+function PopupmenuDenoise_Callback(hObject, eventdata, handles)
+% hObject    handle to PopupmenuDenoise (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns PopupmenuDenoise contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from PopupmenuDenoise
+
+
+% --- Executes during object creation, after setting all properties.
+function PopupmenuDenoise_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to PopupmenuDenoise (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
