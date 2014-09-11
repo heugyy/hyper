@@ -327,6 +327,7 @@ else
 end
 cd (currentpath);
 handles.datacube = datacube;
+handles.originalDatacube = datacube; % back up
 handles.bandname = bandname;
 numofBand = length(bandname);
 midBand = round(numofBand/2);
@@ -750,6 +751,7 @@ function ButtonDenoise_Callback(hObject, eventdata, handles)
 method = get(handles.PopupmenuDenoise, 'Value');
 datacube = handles.datacube;
 bandname = handles.bandname;
+[m, n, b] = size(datacube);
 switch method
     case 1 %'Gaussian'
         h = fspecial('gaussian');
@@ -758,8 +760,13 @@ switch method
         h = fspecial('average');
         denoisedData = imfilter(datacube,h);
     case 3 %'Meddian'
-        denoisedData = medfilt2(datacube);        
+        for i = 1:b
+            slice = datacube(:,:,i);
+            denoisedData(:,:,i) = medfilt2(slice);
+        end   
     case 4 %'NMF'
+    case 5 %'Original'
+        denoisedData = handles.originalDatacube;
 end
 handles.datacube = denoisedData;
 guidata(hObject, handles);
