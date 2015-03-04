@@ -12,6 +12,9 @@ if filename(l-3) =='.'
 end
 headername = strcat(prefix,'.hdr');
 dataname = strcat(prefix,'.dat');
+if 0 == exist(dataname, 'file')
+   dataname = strcat(prefix,'.raw');
+end
 fp = fopen(headername);
 if fp == -1
     error('Can''t find the header file!');
@@ -30,12 +33,10 @@ while (string ~= -1)
 		datatype = sscanf(string,'data type = %d');
     elseif (strncmp(string,'interleave',10))
         interleave = sscanf(string, 'interleave = %s');
-    elseif (strncmp(string,'wavelength = {',14))
-        i = 1;
+    elseif (strncmpi(string,'wavelength = {',14))
         string = fgets(fp); 
-        while(string ~= -1) 
-            bandname(i) = sscanf(string, '%d');
-            i = i + 1;
+        for i = 1: bands  
+            bandname(i,1) = sscanf(string, '%f');
             string = fgets(fp);  
         end
         break;    

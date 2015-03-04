@@ -1,33 +1,7 @@
 function varargout = View_Spec(varargin)
-% View the ENVI or Mat format hyperspectral data. 
-
-% View_Spec MATLAB code for View_Spec.fig
-%      View_Spec, by itself, creates a new View_Spec or raises the existing
-%      singleton*.
-%
-%      H = View_Spec returns the handle to a new View_Spec or the handle to
-%      the existing singleton*.
-%
-%      View_Spec('CALLBACK',hObject,eventData,handles,...) calls the local
-%      function named CALLBACK in View_Spec.M with the given input arguments.
-%
-%      View_Spec('Property','Value',...) creates a new View_Spec or raises the
-%      existing singleton*.  Starting from the left, property value pairs
-%      are 
-%      applied to the GUI before View_Spec_OpeningFcn gets called.  An
-%      unrecognized property name or invalid value makes property application
-%      stop.  All inputs are passed to View_Spec_OpeningFcn via varargin.
-%
-%      *See GUI Options on GUIDE's Tools menu.  Choose "GUI allows only one
-%      instance to run (singleton)".
-%
-% See also: GUIDE, GUIDATA, GUIHANDLES
-
-% Edit the above text to modify the response to help View_Spec
-
-% Last Modified by GUIDE v2.5 15-Aug-2014 16:17:44
-
-% Begin initialization code - DO NOT EDIT
+% Authors: Jie Liang, jie.liang@anu.edu.au
+% Copyright  Computer Vision & Image Processing Lab @ Griffith Univeristy.
+% Do not distribute.
 gui_Singleton = 0;
 gui_State = struct('gui_Name',       mfilename, ...
                    'gui_Singleton',  gui_Singleton, ...
@@ -56,7 +30,7 @@ function View_Spec_OpeningFcn(hObject, eventdata, handles, varargin)
 % varargin   command line arguments to View_Spec (see VARARGIN)
 
 %addpath(genpath('C:\Users\s2882161\Documents\MATLAB\MatlabFns'));
-
+addpath(genpath('E:\Matlab\tools\MTSNMF_denoising')); % add path of denoise function
 set(handles.RadioGray,'value',1);
 set(handles.RadioColor,'value',0);
 set(handles.RadioOverlaid,'value',0);
@@ -107,10 +81,12 @@ function RadioGray_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of RadioGray
 set(handles.RadioColor,'value',0);
 set(handles.RadioOverlaid,'value',0);
+bandname = handles.bandname;
 band = get(handles.SliderWavelength, 'Value');
-set(handles.EditWavelength, 'String', num2str(band));
-slice = squeeze(handles.datacube(:,:,floor((band-handles.bandname(1))/10+1)));
-imshow(slice);
+index = knnsearch(bandname,band);
+set(handles.EditWavelength, 'String', num2str(bandname(index)));
+slice = squeeze(handles.datacube(:,:,index));
+imshow(slice, [handles.dataMin, handles.dataMax]);
 
 % --- Executes on slider movement.
 function SliderWavelength_Callback(hObject, eventdata, handles)
@@ -119,10 +95,11 @@ function SliderWavelength_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 band = get(handles.SliderWavelength, 'Value');
-set(handles.EditWavelength, 'String', num2str(band));
-step = handles.bandname(2) - handles.bandname(1);
-slice = squeeze(handles.datacube(:,:,floor((band-handles.bandname(1))/step+1)));
-axes(handles.axes1); cla; imshow(slice);
+bandname = handles.bandname;
+index = knnsearch(bandname,band);
+set(handles.EditWavelength, 'String', num2str(bandname(index)));
+slice = squeeze(handles.datacube(:,:,index));
+axes(handles.axes1); cla; imshow(slice, [handles.dataMin, handles.dataMax]);
 
 
 
@@ -233,7 +210,7 @@ num = 6;
 sample = zeros(num,b);
 i = 1;
 scrsz = get(0,'ScreenSize');
-h = figure(1); hold all,
+h = figure(100); hold all,
 set(h,'Position',[10 scrsz(4)/4 scrsz(3)*0.3 scrsz(4)*0.4],'Name','Spectral Profile');
 xlabel('Wavelength'); ylabel('Reflectance');
 
@@ -267,7 +244,7 @@ function ToolOpen_ClickedCallback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 currentpath = cd();
-[filename, pathname] = uigetfile({'*.hdr;*.dat;*.mat','Hyper Files (*.hdr,*.dat,*.mat)'},'Load Hyperspectral File');
+[filename, pathname] = uigetfile({'*.hdr;*.dat;*.raw;*.mat','Hyper Files (*.hdr,*.dat,*.raw,*.mat)'},'Load Hyperspectral File');
 if (filename==0) % cancel pressed
     return;
 end
@@ -278,28 +255,28 @@ if strcmp(filename(end-3:end), '.mat')
         datacube=datacube.ref;
         
         if size(datacube,3) == 31
-            bandname = 420:10:720;
+            bandname = (420:10:720)';
         end 
     else 
         switch size(datacube,3)
             case 31
-                bandname = 410:10:710;
+                bandname = (410:10:710)';
         %else size(datacube,3) == 56 need to be fixed, because I don't know
         %the first bandname
             case 33
-                bandname = 400:10:720;
+                bandname = (400:10:720)';
             case 41
-                bandname = 600:10:1000;
+                bandname = (600:10:1000)';
             case 51
-                bandname = 500:10:1000;
+                bandname = (500:10:1000)';
             case 61 
-                bandname = 400:10:1000;
+                bandname = (400:10:1000)';
             case 65
-                bandname = 450:10:1090;
+                bandname = (450:10:1090)';
             case 148
-                bandname = linspace(415,950,148);
+                bandname = (linspace(415,950,148))';
             otherwise
-                bandname = 1:1:size(datacube,3);
+                bandname = (1:1:size(datacube,3))';
         end
     end
 %   normalization will be done in meau
@@ -326,6 +303,8 @@ else
   %  handles.datacube = d;
 end
 cd (currentpath);
+handles.dataMax = max(datacube(:));
+handles.dataMin = min(datacube(:));
 handles.datacube = datacube;
 handles.originalDatacube = datacube; % back up
 handles.bandname = bandname;
@@ -355,7 +334,7 @@ RGB(:,:,3) = slice;
 %     RGB(:,:,3) = squeeze(handles.datacube(:,:,floor((500-bandname(1))/10+1)));
 % end
 handles.RGB = RGB;
-axes(handles.axes1); cla; imshow(slice);
+axes(handles.axes1); cla; imshow(slice, [handles.dataMin, handles.dataMax]);
 axes(handles.axes_spec); cla;
 set(handles.axes_spec, 'Visible', 'off');
 guidata(hObject, handles)
@@ -469,7 +448,14 @@ currentpath = cd();
 if FileName == 0
     return
 end
+
 datacube = handles.datacube;
+if range(datacube(:)) > 1 
+    datacube = normalise(datacube, 'p', 0.999);
+end
+datacube = datacube*255;
+datacube = uint8(datacube);
+
 if strcmp(FileName(end-3:end),'.mat')
     cd (Path);
     save(FileName, 'datacube');
@@ -550,6 +536,10 @@ function ButtonImadjust_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 slice = getimage(handles.axes1);
+slice = double(slice);
+minv = min(slice(:));
+maxv = max(slice(:));
+slice=(slice-minv)./(maxv-minv);
 slice = imadjust(slice);
 axes(handles.axes1),cla;
 imshow(slice);
@@ -568,7 +558,9 @@ mkdir(foldername)
 
 datacube = handles.datacube;
 bandname = handles.bandname; 
-datacube = normalise(datacube, 'p', 0.999);
+if range(datacube(:)) > 1 
+    datacube = normalise(datacube, 'p', 0.999);
+end
 datacube = datacube*255;
 datacube = uint8(datacube);
 [~, ~, b] = size(datacube);
@@ -683,6 +675,8 @@ end
 
 datacube = normalise(datacube,'percent', 0.999);
 handles.datacube = datacube;
+handles.dataMin = 0;
+handles.dataMax = 1;
 guidata(hObject, handles);
 
 
@@ -693,6 +687,8 @@ function Normalise_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 datacube = normalise(handles.datacube,'percent', 0.999);
 handles.datacube = datacube;
+handles.dataMin = 0;
+handles.dataMax = 1;
 guidata(hObject, handles);
 
 
@@ -707,7 +703,9 @@ cd(path);
 mkdir(foldername)
 datacube = handles.datacube;
 bandname = handles.bandname; 
-datacube = normalise(datacube, 'p', 0.999);
+if range(datacube(:)) <= 1 
+    datacube = normalise(datacube, 'p', 0.999);
+end
 datacube = datacube * 255;
 datacube = uint8(datacube);
 [~, ~, b] = size(datacube);
@@ -765,6 +763,9 @@ switch method
             denoisedData(:,:,i) = medfilt2(slice);
         end   
     case 4 %'NMF'
+        commandwindow;
+        denoisedData = HSI_denoising(datacube);
+        openfig('View_Spec.fig', 'reuse');
     case 5 %'Original'
         denoisedData = handles.originalDatacube;
 end
