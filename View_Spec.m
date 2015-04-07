@@ -69,7 +69,7 @@ function RadioColor_Callback(hObject, eventdata, handles)
 set(handles.RadioGray,'value',0);
 set(handles.RadioOverlaid,'value',0);
 RGB = handles.RGB;
-axes(handles.axes1); cla; imshow(RGB);
+axes(handles.axes1); cla; imshow(RGB,[]);
 guidata(hObject, handles);
 
 % --- Executes on button press in RadioGray.
@@ -86,7 +86,7 @@ band = get(handles.SliderWavelength, 'Value');
 index = knnsearch(bandname,band);
 set(handles.EditWavelength, 'String', num2str(bandname(index)));
 slice = squeeze(handles.datacube(:,:,index));
-imshow(slice, [handles.dataMin, handles.dataMax]);
+imshow(slice, []);
 
 % --- Executes on slider movement.
 function SliderWavelength_Callback(hObject, eventdata, handles)
@@ -99,7 +99,7 @@ bandname = handles.bandname;
 index = knnsearch(bandname,band);
 set(handles.EditWavelength, 'String', num2str(bandname(index)));
 slice = squeeze(handles.datacube(:,:,index));
-axes(handles.axes1); cla; imshow(slice, [handles.dataMin, handles.dataMax]);
+axes(handles.axes1); cla; imshow(slice, [ ]);
 
 
 
@@ -114,7 +114,7 @@ bandname = handles.bandname;
 for i=1:length(bandname)
     slice = squeeze(handles.datacube(:,:,i));
     axes(handles.axes1); cla;
-    imshow(slice);
+    imshow(slice, []);
     set (handles.SliderWavelength,'Value',bandname(i));
     set (handles.EditWavelength, 'String', bandname(i));
     pause(0.3);
@@ -191,7 +191,7 @@ sliceB = squeeze(handles.datacube(:,:,floor((T3-handles.bandname(1))/10+1)));
 % RGB(:,:,3) = imadjust(sliceB);
 RGB(:,:,3) = sliceB;
 handles.RGB = RGB;
-axes(handles.axes1); cla; imshow(RGB);
+axes(handles.axes1); cla; imshow(RGB,[]);
 guidata(hObject, handles);    
 
 
@@ -303,8 +303,6 @@ else
   %  handles.datacube = d;
 end
 cd (currentpath);
-handles.dataMax = max(datacube(:));
-handles.dataMin = min(datacube(:));
 handles.datacube = datacube;
 handles.originalDatacube = datacube; % back up
 handles.bandname = bandname;
@@ -334,7 +332,7 @@ RGB(:,:,3) = slice;
 %     RGB(:,:,3) = squeeze(handles.datacube(:,:,floor((500-bandname(1))/10+1)));
 % end
 handles.RGB = RGB;
-axes(handles.axes1); cla; imshow(slice, [handles.dataMin, handles.dataMax]);
+axes(handles.axes1); cla; imshow(slice, []);
 axes(handles.axes_spec); cla;
 set(handles.axes_spec, 'Visible', 'off');
 guidata(hObject, handles)
@@ -398,7 +396,7 @@ set(handles.RadioGray,'value',0);
 set(handles.RadioColor,'value',0);
 slice = sum(handles.datacube, 3);
 slice = slice/length(handles.bandname);
-axes(handles.axes1); cla; imshow(slice);
+axes(handles.axes1); cla; imshow(slice,[]);
 
 
 % --------------------------------------------------------------------
@@ -640,43 +638,50 @@ function Process_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% process the white and dark calibration
 datacube = double(handles.datacube);
 bandname = handles.bandname;
-darkFrame = double(handles.darkFrame);
-Rdatacube = datacube - darkFrame;
-rect = handles.rect;
-whiteArea = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:); 
-darkArea = darkFrame(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);
-RwhiteArea =  whiteArea - darkArea;
+% process the white and dark calibration
 
-%make sure they are above 0
-Dmin = min(Rdatacube(:));
-Wmin = min(RwhiteArea(:));
-minimum = min(Dmin, Wmin);
-if minimum < 0
-    NRdatacube = Rdatacube + abs(minimum);
-    NRwhiteArea = RwhiteArea + abs(minimum);
-    %NRdatacube = Rdatacube + abs(Dmin);
-    %NRwhiteArea = RwhiteArea + abs(Wmin);
+if isfield(handles, 'darkFrame')
+    darkFrame = double(handles.darkFrame);   
+else
+    disp('Dark frame does not exist.');
+    darkFrame = zeros(size(datacube));
 end
-whiteReference = squeeze(mean(mean(NRwhiteArea,1),2));
+Rdatacube = datacube - darkFrame;
+if  isfield(handles, 'rect')
+    rect = handles.rect;
+    whiteArea = datacube(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:); 
+    darkArea = darkFrame(round(rect(2)):round(rect(2)+rect(4)),round(rect(1)):round(rect(1)+rect(3)),:);
+    RwhiteArea =  whiteArea - darkArea;
+    %make sure they are above 0
+    Dmin = min(Rdatacube(:));
+    Wmin = min(RwhiteArea(:));
+    minimum = min(Dmin, Wmin);
+    if minimum < 0
+        NRdatacube = Rdatacube + abs(minimum);
+        NRwhiteArea = RwhiteArea + abs(minimum);
+        %NRdatacube = Rdatacube + abs(Dmin);
+        %NRwhiteArea = RwhiteArea + abs(Wmin);
+    else 
+        NRdatacube = Rdatacube;
+        NRwhiteArea = RwhiteArea;
+    end
+    whiteReference = squeeze(mean(mean(NRwhiteArea,1),2));
+else
+    disp('Spectralon is not used.');
+    NRdatacube = Rdatacube;
+    whiteReference = ones(1,size(datacube,3)); 
+end
+
 for i = 1:length(bandname)
    datacube(:,:,i) = NRdatacube(:,:,i)/ whiteReference(i);
 end
-
-% Rdatacube(Rdatacube<0) = 0;
-% RwhiteArea(RwhiteArea<0) = 0;
-% 
-% whiteReference = squeeze(mean(mean(RwhiteArea,1),2));
-% for i = 1:length(bandname)
-%    datacube(:,:,i) = Rdatacube(:,:,i)/ whiteReference(i);
-% end
-
 datacube = normalise(datacube,'percent', 0.999);
 handles.datacube = datacube;
-handles.dataMin = 0;
-handles.dataMax = 1;
+slice = squeeze(handles.datacube(:,:,i));
+axes(handles.axes1); cla;
+imshow(slice, []);
 guidata(hObject, handles);
 
 
@@ -687,8 +692,6 @@ function Normalise_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 datacube = normalise(handles.datacube,'percent', 0.999);
 handles.datacube = datacube;
-handles.dataMin = 0;
-handles.dataMax = 1;
 guidata(hObject, handles);
 
 
@@ -734,7 +737,7 @@ tempData = double(tempData');
 rho = corr(tempData, spectral);
 rho(rho>0.9) = 0;
 img = reshape(rho,[m, n]);
-figure, imshow(img);
+figure, imshow(img, []);
 
 % rho = corr(data', spectral');
 
