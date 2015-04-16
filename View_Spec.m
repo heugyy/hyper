@@ -679,10 +679,8 @@ for i = 1:length(bandname)
 end
 datacube = normalise(datacube,'percent', 0.999);
 handles.datacube = datacube;
-slice = squeeze(handles.datacube(:,:,i));
-axes(handles.axes1); cla;
-imshow(slice, []);
 guidata(hObject, handles);
+SliderWavelength_Callback(hObject, eventdata, handles);
 
 
 % --------------------------------------------------------------------
