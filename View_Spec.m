@@ -68,8 +68,7 @@ function RadioColor_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of RadioColor
 set(handles.RadioGray,'value',0);
 set(handles.RadioOverlaid,'value',0);
-RGB = handles.RGB;
-axes(handles.axes1); cla; imshow(RGB,[]);
+set(handles.RadioColor,'value',1);
 guidata(hObject, handles);
 
 % --- Executes on button press in RadioGray.
@@ -99,7 +98,9 @@ bandname = handles.bandname;
 index = knnsearch(bandname,band);
 set(handles.EditWavelength, 'String', num2str(bandname(index)));
 slice = squeeze(handles.datacube(:,:,index));
+handles.index=index;
 axes(handles.axes1); cla; imshow(slice, [ ]);
+
 
 
 
@@ -166,30 +167,43 @@ function ButtonChangeRGB_Callback(hObject, eventdata, handles)
 % hObject    handle to ButtonChangeRGB (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-prompt = {'Enter bandname for red channel(400-1000):','Enter bandname for green channel(400-1000):','Enter bandname for blue channel(400-1000):'};
-dlg_title = 'RGB Channels:';
-num_lines = 1;
-def = {'650','550','500'};
-answer = inputdlg(prompt,dlg_title,num_lines,def);
-if (isempty(answer))
-    return;
+
+
+if handles.RadioColor ~= 0
+    %read Colour Matching Functions
+    filename = 'CMF.xlsx';
+    xlsbandname = xlsread(filename,'A:A');
+    xlsRGB = xlsread(filename,'B1:D45');
+
+    index=handles.index;%%??handles index still equals to 26
+    slice = squeeze(handles.datacube(:,:,index));
+    bandname=handles.bandname;
+    if bandname(index)< xlsbandname(1)
+        RGB(:,:,1)= 0;
+    RGB(:,:,2)= 0;
+    RGB(:,:,3)= slice;
+
+    else if bandname(index)> xlsbandname(size(xlsbandname))
+        RGB(:,:,1)= slice;
+        RGB(:,:,2)= 0;
+        RGB(:,:,3)= 0;
+        
+        else
+            for i=1:size(xlsbandname)
+                if bandname(index)==xlsbandname(i)
+                    xlsindex=i;
+                end
+            end
+            xlssum=1;%(xlsRGB(xlsindex,1)+xlsRGB(xlsindex,2)+xlsRGB(xlsindex,3));
+            i1=xlsRGB(xlsindex,1)/xlssum;
+            i2=xlsRGB(xlsindex,2)/xlssum;  
+            i3=xlsRGB(xlsindex,3)/xlssum;
+            RGB(:,:,1)= slice*i1;
+            RGB(:,:,2)= slice*i2;    
+            RGB(:,:,3)= slice*i3;
+        end
+    end
 end
-T1 = str2num(answer{1});
-T2 = str2num(answer{2});
-T3 = str2num(answer{3});
-if (T1>1000) || (T1<400) || (T2>1000) || (T2<400) || (T3>=1000) || (T3<=400)
-    return;
-end
-sliceR = squeeze(handles.datacube(:,:,floor((T1-handles.bandname(1))/10+1)));
-%this is to show the error of registration error
-% RGB(:,:,1) = imadjust(sliceR);
-RGB(:,:,1) = sliceR;
-sliceG = squeeze(handles.datacube(:,:,floor((T2-handles.bandname(1))/10+1)));
-% RGB(:,:,2) = imadjust(sliceG);
-RGB(:,:,2) = sliceG;
-sliceB = squeeze(handles.datacube(:,:,floor((T3-handles.bandname(1))/10+1)));
-% RGB(:,:,3) = imadjust(sliceB);
-RGB(:,:,3) = sliceB;
 handles.RGB = RGB;
 axes(handles.axes1); cla; imshow(RGB,[]);
 guidata(hObject, handles);    
@@ -308,6 +322,7 @@ handles.originalDatacube = datacube; % back up
 handles.bandname = bandname;
 numofBand = length(bandname);
 midBand = round(numofBand/2);
+handles.index=midBand;
 interval = bandname(2) - bandname(1);
 slidermin = bandname(1);
 slidermax = bandname(end);
@@ -799,3 +814,38 @@ function PopupmenuDenoise_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+
+function EditWavelength_Callback(hObject, eventdata, handles)
+% hObject    handle to EditWavelength (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of EditWavelength as text
+%        str2double(get(hObject,'String')) returns contents of EditWavelength as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function EditWavelength_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to EditWavelength (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+
+
+% --- Executes during object creation, after setting all properties.
+function axes_spec_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to axes_spec (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: place code in OpeningFcn to populate axes_spec
