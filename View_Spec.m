@@ -31,9 +31,6 @@ function View_Spec_OpeningFcn(hObject, eventdata, handles, varargin)
 
 %addpath(genpath('C:\Users\s2882161\Documents\MATLAB\MatlabFns'));
 addpath(genpath('E:\Matlab\tools\MTSNMF_denoising')); % add path of denoise function
-set(handles.RadioGray,'value',1);
-set(handles.RadioColor,'value',0);
-set(handles.RadioOverlaid,'value',0);
 set(handles.axes_spec, 'Visible', 'off');
 axes(handles.axes_spec); cla;
 axes(handles.axes1); cla; imshow('VA210.jpg');
@@ -59,34 +56,6 @@ function varargout = View_Spec_OutputFcn(hObject, eventdata, handles)
 % Get default command line output from handles structure
 varargout{1} = handles.output;
 
-% --- Executes on button press in RadioColor.
-function RadioColor_Callback(hObject, eventdata, handles)
-% hObject    handle to RadioColor (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of RadioColor
-set(handles.RadioGray,'value',0);
-set(handles.RadioOverlaid,'value',0);
-RGB = handles.RGB;
-axes(handles.axes1); cla; imshow(RGB,[]);
-guidata(hObject, handles);
-
-% --- Executes on button press in RadioGray.
-function RadioGray_Callback(hObject, eventdata, handles)
-% hObject    handle to RadioGray (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of RadioGray
-set(handles.RadioColor,'value',0);
-set(handles.RadioOverlaid,'value',0);
-bandname = handles.bandname;
-band = get(handles.SliderWavelength, 'Value');
-index = knnsearch(bandname,band);
-set(handles.EditWavelength, 'String', num2str(bandname(index)));
-slice = squeeze(handles.datacube(:,:,index));
-imshow(slice, []);
 
 % --- Executes on slider movement.
 function SliderWavelength_Callback(hObject, eventdata, handles)
@@ -99,7 +68,9 @@ bandname = handles.bandname;
 index = knnsearch(bandname,band);
 set(handles.EditWavelength, 'String', num2str(bandname(index)));
 slice = squeeze(handles.datacube(:,:,index));
+handles.index = index;
 axes(handles.axes1); cla; imshow(slice, [ ]);
+guidata(hObject, handles);
 
 
 
@@ -166,30 +137,49 @@ function ButtonChangeRGB_Callback(hObject, eventdata, handles)
 % hObject    handle to ButtonChangeRGB (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-prompt = {'Enter bandname for red channel(400-1000):','Enter bandname for green channel(400-1000):','Enter bandname for blue channel(400-1000):'};
-dlg_title = 'RGB Channels:';
-num_lines = 1;
-def = {'650','550','500'};
-answer = inputdlg(prompt,dlg_title,num_lines,def);
-if (isempty(answer))
-    return;
-end
-T1 = str2num(answer{1});
-T2 = str2num(answer{2});
-T3 = str2num(answer{3});
-if (T1>1000) || (T1<400) || (T2>1000) || (T2<400) || (T3>=1000) || (T3<=400)
-    return;
-end
-sliceR = squeeze(handles.datacube(:,:,floor((T1-handles.bandname(1))/10+1)));
-%this is to show the error of registration error
-% RGB(:,:,1) = imadjust(sliceR);
-RGB(:,:,1) = sliceR;
-sliceG = squeeze(handles.datacube(:,:,floor((T2-handles.bandname(1))/10+1)));
-% RGB(:,:,2) = imadjust(sliceG);
-RGB(:,:,2) = sliceG;
-sliceB = squeeze(handles.datacube(:,:,floor((T3-handles.bandname(1))/10+1)));
-% RGB(:,:,3) = imadjust(sliceB);
-RGB(:,:,3) = sliceB;
+
+
+
+    %read Colour Matching Functions
+    filename = 'CMF.xlsx';
+    xlsbandname = xlsread(filename,'A:A');
+    xlsRGB = xlsread(filename,'B1:D45');
+
+    index =handles.index; %% guidata(hObject, handles) helps change the content of handles
+    slice = squeeze(handles.datacube(:,:,index));
+    maxxlsband=size(xlsbandname);
+    bandname=handles.bandname;
+    if bandname(index)< xlsbandname(1)
+        RGB(:,:,1)= 0;
+        RGB(:,:,2)= 0;
+        RGB(:,:,3)= slice;
+
+    else if bandname(index)> xlsbandname(maxxlsband(1))
+            indexlast=size(xlsRGB,1);
+            i1=xlsRGB(indexlast,1);
+            i2=xlsRGB(indexlast,2);  
+            i3=xlsRGB(indexlast,3);
+            xlssum=i1+i2+i3;
+            RGB(:,:,1)= slice*i1/ xlssum;
+            RGB(:,:,2)= slice*i2/ xlssum;    
+            RGB(:,:,3)= slice*i3/ xlssum;      
+        else
+            for i=1:maxxlsband(1)
+                if bandname(index)==xlsbandname(i)
+                    xlsindex=i;
+                end
+            end
+            
+            i1=xlsRGB(xlsindex,1);
+            i2=xlsRGB(xlsindex,2);  
+            i3=xlsRGB(xlsindex,3);
+            xlssum=i1+i2+i3;
+            RGB(:,:,1)= slice*i1/ xlssum;
+            RGB(:,:,2)= slice*i2/ xlssum;    
+            RGB(:,:,3)= slice*i3/ xlssum;
+        end
+    end
+
 handles.RGB = RGB;
 axes(handles.axes1); cla; imshow(RGB,[]);
 guidata(hObject, handles);    
@@ -308,6 +298,7 @@ handles.originalDatacube = datacube; % back up
 handles.bandname = bandname;
 numofBand = length(bandname);
 midBand = round(numofBand/2);
+handles.index = midBand;
 interval = bandname(2) - bandname(1);
 slidermin = bandname(1);
 slidermax = bandname(end);
@@ -383,20 +374,6 @@ cd(path);
 img = getimage(handles.axes1);
 imwrite(img,FileName);
 cd(currentpath);
-
-
-% --- Executes on button press in RadioOverlaid.
-function RadioOverlaid_Callback(hObject, eventdata, handles)
-% hObject    handle to RadioOverlaid (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-% Hint: get(hObject,'Value') returns toggle state of RadioOverlaid
-set(handles.RadioGray,'value',0);
-set(handles.RadioColor,'value',0);
-slice = sum(handles.datacube, 3);
-slice = slice/length(handles.bandname);
-axes(handles.axes1); cla; imshow(slice,[]);
 
 
 % --------------------------------------------------------------------
@@ -799,3 +776,150 @@ function PopupmenuDenoise_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
+
+
+
+function EditWavelength_Callback(hObject, eventdata, handles)
+% hObject    handle to EditWavelength (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of EditWavelength as text
+%        str2double(get(hObject,'String')) returns contents of EditWavelength as a double
+
+
+% --- Executes during object creation, after setting all properties.
+function EditWavelength_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to EditWavelength (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+% --- Executes during object creation, after setting all properties.
+function axes_spec_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to axes_spec (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: place code in OpeningFcn to populate axes_spec
+
+
+function Corners = DetectHarris(img, varargin) %use peter's function
+
+sigma = 3;radius = 1;disp = 0;   
+if isempty(varargin) 
+    thresh = 0.0005;
+else thresh = varargin{1};
+end
+[~, ~, ~, rsubp, csubp] = harris(img, sigma, thresh, radius, disp);
+while length(rsubp) <=3;
+    thresh = thresh*0.1;
+    [~, ~, ~, rsubp, csubp] = harris(img, sigma, thresh, radius, disp);
+    if thresh < 0.000001
+       break
+    end
+end        
+Corners = [csubp rsubp];
+
+% --- Executes on button press in ButtonHarris.
+function ButtonHarris_Callback(hObject, eventdata, handles)
+% hObject    handle to ButtonHarris (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+index =handles.index; %% read bandindex
+slice = squeeze(handles.datacube(:,:,index)); %read current image
+image=im2uint8(slice);
+if ~isempty(handles.datacube) %check the image is loaded
+    anchorCORNERS = DetectHarris(image);
+    %end
+    axes(handles.axes1);  cla; imshow(image);
+    hold on;
+    plot(floor(anchorCORNERS(:,1)), floor(anchorCORNERS(:,2)),'ro');
+    %set(handles.AnchorFeatureNo, 'String',sprintf('%10s: %d', 'Harris', size(anchorCORNERS,1)));
+else
+    h = msgbox('No first file has been loaded!','file warning','warning');
+end
+
+function TransformLine(imsize, keypoint, x1, y1, x2, y2, color)
+
+% The scaling of the unit length arrow is set to approximately the radius
+%   of the region used to compute the keypoint descriptor.
+len = 6 * keypoint(3);
+
+% Rotate the keypoints by 'ori' = keypoint(4)
+s = sin(keypoint(4));
+c = cos(keypoint(4));
+
+% Apply transform
+r1 = keypoint(1) - len * (c * y1 + s * x1);
+c1 = keypoint(2) + len * (- s * y1 + c * x1);
+r2 = keypoint(1) - len * (c * y2 + s * x2);
+c2 = keypoint(2) + len * (- s * y2 + c * x2);
+
+line([c1 c2], [r1 r2], 'Color', color);
+
+% --- Executes on button press in ButtonSIFT.
+function ButtonSIFT_Callback(hObject, eventdata, handles)
+% hObject    handle to ButtonSIFT (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+%SIFT detection
+index =handles.index; %% read bandindex
+slice = squeeze(handles.datacube(:,:,index)); %read current image
+image=im2uint8(slice);
+[image, descrips, locs] = sift(image);
+
+axes(handles.axes1);cla;
+imshow(image);  
+hold on;
+imsize = size(image);
+for i = 1: size(locs,1)
+   % Draw an arrow, each line transformed according to keypoint parameters.
+   TransformLine(imsize, locs(i,:), 0.0, 0.0, 1.0, 0.0, 'r');
+   TransformLine(imsize, locs(i,:), 0.85, 0.1, 1.0, 0.0, 'r');
+   TransformLine(imsize, locs(i,:), 0.85, -0.1, 1.0, 0.0, 'r');
+end
+hold off;
+%set(handles.AnchorFeatureNo, 'String',sprintf('%10s: %d', 'SIFT', size(handles.anchorLOCS,1)));
+
+
+
+% --- Executes on button press in ButtonSURF.
+function ButtonSURF_Callback(hObject, eventdata, handles)
+% hObject    handle to ButtonSURF (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+%matlab surf detection
+index =handles.index; %% read bandindex
+slice = squeeze(handles.datacube(:,:,index)); %read current image
+image=im2uint8(slice);
+anchor_POINTS = detectSURFFeatures(image);
+axes(handles.axes1); imshow(image);
+hold on;
+plot(anchor_POINTS);
+hold off;
+
+
+
+% --- Executes during object creation, after setting all properties.
+function axes1_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to axes1 (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: place code in OpeningFcn to populate axes1
+
+
+% --- Executes on button press in buttonOverlay.
+function buttonOverlay_Callback(hObject, eventdata, handles)
+% hObject    handle to buttonOverlay (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+slice = sum(handles.datacube, 3);
+slice = slice/length(handles.bandname);
+axes(handles.axes1); cla; imshow(slice,[]);
